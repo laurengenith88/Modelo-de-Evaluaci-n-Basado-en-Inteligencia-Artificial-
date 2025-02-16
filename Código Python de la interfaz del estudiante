@@ -1,0 +1,266 @@
+import tkinter as tk
+from tkinter import simpledialog, messagebox, ttk
+import openai
+
+class LearningStylesApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Encuesta de Estilos de Aprendizaje y Encuesta de Calidad de Estudio")
+        self.root.geometry("700x700")  # Set the main window size
+        self.root.configure(bg="#E3F2FD")  # Light blue background
+
+        style = ttk.Style()
+        style.theme_use("clam")  # Modern look
+        style.configure("TButton", font=("Arial", 12, "bold"), padding=10, background="#1E88E5", foreground="white")
+        style.map("TButton", background=[("active", "#1565C0")], foreground=[("active", "white")])
+        style.configure("TLabel", font=("Arial", 12), background="#E3F2FD", foreground="#0D47A1")
+        style.configure("TFrame", background="#E3F2FD")
+
+        self.api_key = 'Entrar codigo de API'
+        openai.api_key = self.api_key
+
+        self.chat_history = [
+        {"role": "system", "content": "Eres un asistente educativo que da consejos útiles sobre hábitos de estudio."}
+        ]
+
+        # Title
+        title_label = ttk.Label(self.root, text="Encuesta de Estilos de Aprendizaje y Calidad de Estudio", font=("Arial", 16, "bold"))
+        title_label.pack(pady=10)
+
+        # Learning Styles Questionnaire
+        self.learning_style_questions = {
+            "Activo/Reflexivo": [
+                "Entiendo claramente un tema resolviendo problemas.",
+                "Me gustan las presentaciones en grupos pequeños.",
+                ("Cuando empiezo a resolver un problema, es más probable que primero analice el problema y luego trabaje en la solución.", True),
+                "Prefiero usar simuladores para adquirir nuevos conocimientos.",
+                ("Cuando tengo dificultad para entender un nuevo tema, el uso de analogías facilita la adquisición de este conocimiento.", True)
+            ],
+            "Secuencial/Global": [
+                "Me gusta aplicar el concepto teórico adquirido en el desarrollo de clases mediante un proyecto integrador.",
+                "Me gusta resolver tareas dejadas por el profesor para la casa.",
+                ("Cuando resuelvo problemas aplicados a la ingeniería general, generalmente trabajo en soluciones paso a paso.", True),
+                "Cuando abordo un estudio de caso, prefiero saltar entre diferentes partes que parecen más relevantes en ese momento.",
+                ("Cuando analizo información, me concentro en los detalles y pierdo de vista el panorama general.", True)
+            ],
+            "Sensorial/Intuitivo": [
+                "Para apropiarme del conocimiento teórico, requiero el uso de simulaciones o prácticas empresariales.",
+                ("Es más fácil para mí adquirir nuevos conocimientos utilizando mapas mentales o conceptuales.", True),
+                "Me gusta resolver cualquier tipo de problema para desarrollar un carácter innovador.",
+                ("Recolectar y analizar datos me ayuda a adquirir nuevos conocimientos.", True),
+                "Me gusta adquirir nuevos conocimientos y asociarlos prácticamente usando realidad virtual."
+            ],
+            "Visual/Verbal": [
+                "Para recordar los conocimientos adquiridos del día anterior, es más probable que lo haga a través de imágenes.",
+                ("Para adquirir nuevos conocimientos, es necesario hacerlo mediante clases expositivas acompañadas de textos.", True),
+                "Me gusta cuando el profesor usa diagramas en el tablero para explicar un concepto teórico.",
+                ("Cuando alguien me da indicaciones para buscar algo, prefiero que lo hagan mediante una instrucción escrita.", True),
+                "Cuando el profesor guía el procesamiento de datos, prefiero que se haga mediante gráficos."
+            ]
+        }
+
+        self.local_scores_list = []
+        for category, qs in self.learning_style_questions.items():
+            local_scores = self.create_window_for_category(category, qs)
+            self.local_scores_list.append(local_scores)
+
+        # Submit Button for Learning Styles
+        submit_learning_styles_btn = ttk.Button(self.root, text="Enviar Estilos de Aprendizaje", command=self.submit_learning_styles_answers)
+        submit_learning_styles_btn.pack(pady=10)
+
+        # Study Quality Survey Questions
+        self.survey_questions = [
+            "En promedio, ¿cuántas horas dedica a estudiar para este curso fuera de clase cada semana?",
+            "¿Con qué frecuencia estudia para este curso cada semana?",
+            "¿Con qué frecuencia revisa el material de las clases o tareas anteriores?",
+            "¿Cuánto tiempo suele dedicar a prepararse para clase antes de cada lección?",
+            "¿Cuánto tiempo dedica a repasar el material cubierto después de clase?",
+            "¿Con qué frecuencia estudia en un entorno libre de distracciones?",
+            "¿Con qué frecuencia distribuye sus sesiones de estudio en lugar de hacerlo todo de una vez?",
+            "¿Con qué frecuencia utiliza los recursos de clase proporcionados por el instructor?",
+            "¿Con qué frecuencia lee materiales más allá de los asignados en el curso?",
+            "¿Con qué frecuencia utiliza recursos adicionales en su estudio?"
+        ]
+
+        self.survey_scores = []
+        survey_frame = ttk.Frame(self.root, padding="10")
+        survey_frame.pack(fill='x', pady=(10, 0))
+
+        for idx, question in enumerate(self.survey_questions):
+            question_frame = ttk.Frame(survey_frame)
+            question_frame.pack(fill='x', pady=5)
+
+            question_label = ttk.Label(question_frame, text=f"{idx + 1}. {question}", wraplength=600, anchor="w")
+            question_label.pack(side="left", padx=5)
+
+            score_var = tk.IntVar(value=-1)
+            self.survey_scores.append(score_var)
+
+            for score in range(1, 6):
+                radio_btn = ttk.Radiobutton(question_frame, text=str(score), variable=score_var, value=score)
+                radio_btn.pack(side="right", padx=2)
+        # Weekly Study Frequency and Time
+        study_frame = ttk.Frame(self.root, padding="10")
+        study_frame.pack(fill='x', pady=(20, 10))
+
+        self.study_sessions_var = tk.IntVar()
+        self.study_hours_var = tk.IntVar()
+
+        ttk.Label(study_frame, text="Número de sesiones de estudio por semana:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        self.study_sessions_entry = ttk.Entry(study_frame, textvariable=self.study_sessions_var, width=10)
+        self.study_sessions_entry.grid(row=0, column=1, padx=5, pady=5)
+
+        ttk.Label(study_frame, text="Horas totales de estudio por semana:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        self.study_hours_entry = ttk.Entry(study_frame, textvariable=self.study_hours_var, width=10)
+        self.study_hours_entry.grid(row=1, column=1, padx=5, pady=5)
+
+        # Submit Button
+        submit_btn = ttk.Button(self.root, text="Generar Informe", command=self.submit_answers)
+        submit_btn.pack(pady=20)
+
+        chat_button = ttk.Button(self.root, text="Preguntar a AI", command=self.ask_gpt)
+        chat_button.pack(pady=10)
+
+    def create_window_for_category(self, category, questions):
+        window = tk.Toplevel(self.root)
+        window.title(f"Categoría: {category}")
+        window.configure(bg="#E3F2FD")  # Light blue background
+        
+        reminder_label = ttk.Label(window, text="5 - Siempre, 4 - Casi Siempre, 3 - A veces, 2 - Rara vez, 1 - Nunca")
+        reminder_label.pack(pady=(10, 5))
+        
+        local_scores = []
+        questions_frame = ttk.Frame(window)
+        questions_frame.pack(fill='both', expand=True, padx=10, pady=10)
+        
+        for item in questions:
+            text, reverse = item if isinstance(item, tuple) else (item, False)
+            frame = ttk.Frame(questions_frame)
+            frame.pack(padx=20, pady=5, fill='x', expand=True)
+            question_label = ttk.Label(frame, text=text, wraplength=600)
+            question_label.pack(side='left', fill='x', expand=True)
+            
+            var = tk.IntVar(value=-1)
+            local_scores.append(var)
+            radio_frame = ttk.Frame(frame)
+            radio_frame.pack(side='left')
+            if reverse:
+                range_values = range(1, 6)
+            else:
+                range_values = range(5, 0, -1)
+            for score in range_values:
+                radio_btn = ttk.Radiobutton(radio_frame, text=str(score), variable=var, value=score)
+                radio_btn.pack(side='left')
+        
+        return local_scores
+
+    def submit_learning_styles_answers(self):
+        averages_text = "Promedios de las respuestas:\n"
+        categories = list(self.learning_style_questions.keys())
+        average_scores = []
+        for i, scores in enumerate(self.local_scores_list):
+            category = categories[i]
+            category_scores = [score.get() for score in scores if score.get() != -1]
+            if not category_scores:
+                messagebox.showerror("Error", f"Por favor completa todas las preguntas en la categoría {category}.")
+                return
+            average = sum(category_scores) / len(category_scores)
+            averages_text += f"{category}: {average:.1f}\n"
+            average_scores.append(average)
+
+        messagebox.showinfo("Promedios", averages_text)
+
+    def submit_answers(self):
+        # Gather survey responses
+        responses = []
+        for idx, score_var in enumerate(self.survey_scores):
+            score = score_var.get()
+            if score == -1:
+                messagebox.showerror("Error", f"Por favor responde la pregunta {idx + 1}.")
+                return
+            responses.append(score)
+
+        # Gather study frequency and hours
+        try:
+            study_sessions = int(self.study_sessions_var.get())
+            study_hours = int(self.study_hours_var.get())
+        except ValueError:
+            messagebox.showerror("Error", "Por favor ingresa valores válidos para las sesiones y horas de estudio.")
+            return
+
+        # Prepare OpenAI prompt
+        prompt = (
+            f"Un estudiante respondió las siguientes preguntas de la Encuesta de Calidad de Estudio:\n"
+            f"Duración del estudio: {responses[0]} (1 = menos de 1 hora, 5 = más de 6 horas).\n"
+            f"Frecuencia de estudio: {responses[1]} (1 = antes de exámenes, 5 = casi todos los días).\n"
+            f"Revisión del material: {responses[2]} (1 = solo antes de exámenes, 5 = casi todos los días).\n"
+            f"Preparación antes de clase: {responses[3]} (1 = menos de 15 minutos, 5 = más de 1 hora).\n"
+            f"Revisión después de clase: {responses[4]} (1 = no repasa, 5 = revisa el mismo día).\n"
+            f"Entorno de estudio efectivo: {responses[5]} (1 = nunca, 5 = siempre).\n"
+            f"Distribución del estudio: {responses[6]} (1 = última hora, 5 = distribuido siempre).\n"
+            f"Uso de recursos de clase: {responses[7]} (1 = nunca, 5 = muy regularmente).\n"
+            f"Lectura adicional: {responses[8]} (1 = nunca, 5 = siempre).\n"
+            f"Uso de recursos adicionales: {responses[9]} (1 = nunca, 5 = siempre).\n"
+            f"Número de sesiones de estudio por semana: {study_sessions}.\n"
+            f"Horas totales de estudio por semana: {study_hours}.\n"
+            f"Por favor, genera un informe personalizado con recomendaciones para mejorar los hábitos de estudio de este estudiante."
+        )
+
+        # Call OpenAI API
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "Eres un asistente educativo que da consejos útiles sobre hábitos de estudio."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+
+            feedback = response.choices[0].message['content']
+
+            # Show the feedback
+            response_window = tk.Toplevel(self.root)
+            response_window.title("Informe Personalizado")
+            response_window.geometry("800x400")
+            ttk.Label(response_window, text=feedback, wraplength=780).pack(pady=10, padx=10)
+
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo generar el informe: {str(e)}")
+
+    def ask_gpt(self):
+    
+    question = simpledialog.askstring("Pregunta", "¿Qué quieres preguntar?")
+    
+    if question:
+        
+        # Append user's question to chat history
+        self.chat_history.append({"role": "user", "content": question})
+
+        try:
+            
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=self.chat_history
+            )
+
+            response_text = response.choices[0].message['content']
+
+            # Append AI's response to chat history
+            self.chat_history.append({"role": "assistant", "content": response_text})
+
+            # Display the AI's response
+            response_window = tk.Toplevel(self.root)
+            response_window.title("Respuesta de AI")
+            response_window.geometry("800x100")
+
+            ttk.Label(response_window, text=response_text, wraplength=780).pack(pady=10, padx=10)
+
+        except Exception as e:
+            
+            messagebox.showerror("Error", f"No se pudo obtener respuesta: {str(e)}")        
+
+if __name__ == '__main__':
+    root = tk.Tk()
+    app = LearningStylesApp(root)
+    root.mainloop()
+
